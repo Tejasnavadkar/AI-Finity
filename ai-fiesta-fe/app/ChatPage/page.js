@@ -43,13 +43,17 @@ const AIFiestaChat = () => {
       api: callLlamaAPI
     }
   ];
-
-  // State management
+    // State management
   const [activeModels, setActiveModels] = useState({
     gemini: true,
     gpt: true,
     deepseekchat: true
   });
+
+  const [modelId,setModelId] = useState("")
+ 
+
+
 
   const [minimizedPanels, setMinimizedPanels] = useState({
     gemini: false,
@@ -63,17 +67,25 @@ const AIFiestaChat = () => {
     deepseekchat: []
   });
 
-  const [projects, setProjects] = useState([
- 
-  ]);
+  const [projects, setProjects] = useState([]);
 
-  const [currentProject, setCurrentProject] = useState('hello');
+  const [currentProject, setCurrentProject] = useState();
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState({
     gemini: false,
     gpt: false,
     deepseekchat: false
   });
+
+  //  useEffect(()=>{
+  //    if (!activeModels[modelId]) {
+  //     console.log("ac--",activeModels[modelId])
+  //     setMinimizedPanels(prev => ({
+  //       ...prev,
+  //       [modelId]: !prev[modelId]
+  //     }));
+  //   }
+  // },[activeModels,modelId])
 
   const inputRef = useRef(null);
 
@@ -102,12 +114,14 @@ const AIFiestaChat = () => {
       [modelId]: !prev[modelId]
     }));
 
-    if (!activeModels[modelId]) {
-      setMinimizedPanels(prev => ({
-        ...prev,
-        [modelId]: false
-      }));
-    }
+    // if (!activeModels[modelId]) {  this not usefull bcoz here when set active model it doesn update state immediatly so if set update it takes older value
+    //   console.log("ac--",activeModels[modelId])
+    //   setMinimizedPanels(prev => ({
+    //     ...prev,
+    //     [modelId]: false
+    //   }));
+    // }
+    // setModelId(modelId)
   };
 
   // Handle panel minimize/maximize
@@ -188,7 +202,7 @@ const AIFiestaChat = () => {
       try {
         const model = models.find(m => m.id === modelId);
         const modelHistory = [...newHistories[modelId], { role: 'user', content: userMessage, timestamp: Date.now() }];
-        const response = await model.api(modelHistory);
+        const response = await  model.api(modelHistory);
         
         // Add model response to its specific history
           // Add model response to its specific history
@@ -219,8 +233,8 @@ const AIFiestaChat = () => {
         setIsLoading(prev => ({ ...prev, [modelId]: false }));
       }
     });
-
-    await Promise.all(apiCalls);
+    console.log("apiCalls Array--",apiCalls)
+    await Promise.all(apiCalls); // Ye line wait karti hai jab tak saare models ki API response nahi aa jaati.Matlab, ek hi baar mein sab parallel chalenge, aur jab sab complete ho jayenge tab aage ka code chalega.
   };
 
   // Handle new chat
@@ -353,7 +367,7 @@ const AIFiestaChat = () => {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col"> {/* flex-1 takes remaining width */}
         {/* Chat Panels */}
         <div className="flex-1 flex">
           {models.map((model) => {
@@ -366,7 +380,7 @@ const AIFiestaChat = () => {
             return (
               <div 
                 key={model.id} 
-                className="border-r border-gray-700 flex flex-col bg-gray-900"
+                className="border-r border-gray-700 flex flex-col bg-gray-900 "
                 style={{ width: panelWidth }}
               >
                 {/* Panel Header */}
@@ -412,9 +426,9 @@ const AIFiestaChat = () => {
 
                 {/* Panel Content */}
                 {!isMinimized && (
-                  <div className="flex-1 flex flex-col">
+                  <div className=" flex flex-col h-[530px] overflow-hidden overflow-y-scroll ">
                     {/* Messages */}
-                    <div className="flex-1 p-4 overflow-y-auto">
+                    <div className="flex-1 p-4">
                       {histories[model.id].length === 0 ? (
                         <div className="flex items-center justify-center h-full">
                           <div className="text-center">
