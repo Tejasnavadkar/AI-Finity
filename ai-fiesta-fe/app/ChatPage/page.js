@@ -1,6 +1,7 @@
 "use client"
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Plus, Settings, BookOpen, Zap, Mic, Paperclip, Image, Copy, ThumbsUp, ThumbsDown, Share, Minimize2, Maximize2 } from 'lucide-react';
+import { callAiModel } from '@/api/chatapi';
 
 // Mock API functions - replace with your actual API calls
 const callGeminiAPI = async (history) => {
@@ -26,28 +27,29 @@ const AIFiestaChat = () => {
       name: 'Gemini 2.5 Lite',
       icon: '💎',
       color: 'blue',
-      api: callGeminiAPI
+      api: callAiModel // api call which accepts model name and history
     },
     {
-      id: 'gpt',
+      id: 'openai',
       name: 'GPT-4o mini',
       icon: '⚡',
       color: 'gray',
-      api: callGPTAPI
+      api: callAiModel
     },
     {
-      id: 'deepseekchat',
-      name: 'DeepSeek Chat',
+      id: 'llama',
+      name: 'llama Chat',
       icon: '🔮',
       color: 'purple',
-      api: callLlamaAPI
+      api: callAiModel
     }
   ];
+  
     // State management
   const [activeModels, setActiveModels] = useState({
     gemini: true,
-    gpt: true,
-    deepseekchat: true
+    openai: true,
+    llama: true
   });
 
   const [modelId,setModelId] = useState("")
@@ -57,14 +59,15 @@ const AIFiestaChat = () => {
 
   const [minimizedPanels, setMinimizedPanels] = useState({
     gemini: false,
-    gpt: false,
-    deepseekchat: false
+    openai: false,
+    llama: false
   });
 
+  const [errorMsg, setErrorMsg] = useState("");
   const [histories, setHistories] = useState({
     gemini: [],
-    gpt: [],
-    deepseekchat: []
+    openai: [],
+    llama: []
   });
 
   const [projects, setProjects] = useState([]);
@@ -73,8 +76,8 @@ const AIFiestaChat = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState({
     gemini: false,
-    gpt: false,
-    deepseekchat: false
+    openai: false,
+    llama: false
   });
 
   //  useEffect(()=>{
@@ -139,7 +142,10 @@ const AIFiestaChat = () => {
 
   // Handle sending message
   const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
+
+    try {
+        setErrorMsg("")
+      if (!inputMessage.trim()) return;
 
     const userMessage = inputMessage.trim();
     setInputMessage('');
@@ -155,7 +161,7 @@ const AIFiestaChat = () => {
   //   activeModelIds.forEach(modelId => {
   //     newHistories[modelId] = [
   //       ...(prev[modelId] || []),
-  //       { role: 'user', content: userMessage, timestamp: Date.now() }
+  //       { role: 'user', content: userMessage }
   //     ];
   //   });
   //   console.log("newhist-inside-setHistories-",newHistories)
@@ -176,7 +182,7 @@ const AIFiestaChat = () => {
   activeModelIds.forEach(modelId => {
     newHistories[modelId] = [
       ...(newHistories[modelId] || []),
-      { role: 'user', content: userMessage, timestamp: Date.now() }
+      { role: 'user', content: userMessage }
     ];
   });
 
@@ -201,8 +207,8 @@ const AIFiestaChat = () => {
     const apiCalls = activeModelIds.map(async (modelId) => {
       try {
         const model = models.find(m => m.id === modelId);
-        const modelHistory = [...newHistories[modelId], { role: 'user', content: userMessage, timestamp: Date.now() }];
-        const response = await  model.api(modelHistory);
+        const modelHistory = [...newHistories[modelId], { role: 'user', content: userMessage }];
+        const response = await  model.api(modelId,modelHistory);
         
         // Add model response to its specific history
           // Add model response to its specific history
@@ -212,7 +218,7 @@ const AIFiestaChat = () => {
           ...prev,
           [modelId]: [
             ...(prev[modelId] || []),
-            { role: 'model', content: response, timestamp: Date.now() }
+            { role: 'model', content: response }
           ]
         };
         // Update only the current project with the new histories
@@ -231,11 +237,19 @@ const AIFiestaChat = () => {
       } catch (error) {
         console.error(`Error calling ${modelId} API:`, error);
         setIsLoading(prev => ({ ...prev, [modelId]: false }));
+        setErrorMsg(error.message); // Set error message
       }
     });
     console.log("apiCalls Array--",apiCalls)
     await Promise.all(apiCalls); // Ye line wait karti hai jab tak saare models ki API response nahi aa jaati.Matlab, ek hi baar mein sab parallel chalenge, aur jab sab complete ho jayenge tab aage ka code chalega.
-  };
+  
+      
+    } catch (error) {
+      console.log("yaha dekh")
+       console.log("error in HandleSendMessage--",error.message)
+    }
+
+    };
 
   // Handle new chat
   const handleNewChat = () => {
@@ -256,8 +270,8 @@ const AIFiestaChat = () => {
     // Reset current conversation
     setHistories({
       gemini: [],
-      gpt: [],
-      deepseekchat: []
+      openai: [],
+      llama: []
     });
     setCurrentProject(`Chat ${projects.length + 1}`);
   };
@@ -269,15 +283,15 @@ const AIFiestaChat = () => {
     if (project.histories) {
       setHistories(project.histories || {
   gemini: [],
-  gpt: [],
-  deepseekchat: []
+  openai: [],
+  llama: []
 });
 
     } else {
       setHistories({
         gemini: [],
-        gpt: [],
-        deepseekchat: []
+        openai: [],
+        llama: []
       });
     }
   };
@@ -438,7 +452,7 @@ const AIFiestaChat = () => {
                         </div>
                       ) : (
                         <div className="space-y-6">
-                          {histories[model.id].map((message, index) => (
+                          {histories && histories[model.id].map((message, index) => (
                             <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                               <div className={`max-w-[80%] ${
                                 message.role === 'user' 
@@ -454,6 +468,7 @@ const AIFiestaChat = () => {
                                   </span>
                                 </div>
                                 <div className="text-sm">{message.content}</div>
+                                <div className="text-xs text-red-700 self-end">{errorMsg && errorMsg}</div>
                                 {message.role === 'model' && (
                                   <div className="flex items-center space-x-2 mt-3 pt-3 border-t border-gray-700">
                                     <button className="text-gray-400 hover:text-white p-1">
